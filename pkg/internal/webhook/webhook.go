@@ -70,6 +70,13 @@ func Register(_ context.Context, opts Options) error {
 		return fmt.Errorf("error registering webhook: %w", err)
 	}
 
+	err = builder.WebhookManagedBy(opts.Manager, &policyapi.CertificateRequestPolicySet{}).
+		WithValidator(&policySetValidator{}).
+		Complete()
+	if err != nil {
+		return fmt.Errorf("error registering policy set webhook: %w", err)
+	}
+
 	if err := opts.Manager.AddReadyzCheck("validator", opts.Manager.GetWebhookServer().StartedChecker()); err != nil {
 		return fmt.Errorf("error adding readyz check: %w", err)
 	}

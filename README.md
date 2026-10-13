@@ -16,7 +16,13 @@ CertificateRequests](https://cert-manager.io/docs/concepts/certificaterequest/#a
 
 approver-policy exposes the CertificateRequestPolicy resource which
 administrators use to define policy over what, who, and how certificates are
-signed by cert-manager.
+signed by cert-manager. CertificateRequestPolicySet resources can declare an
+exact group of policies that must all be ready for their current generation
+before the group can deny a matching CertificateRequest. Policies in a set
+must reference the set through `spec.policySetRef` and do not fall back to
+standalone evaluation while the set is missing or incomplete. An example is
+available in
+[`docs/examples/policy-set.yaml`](docs/examples/policy-set.yaml).
 
 ---
 

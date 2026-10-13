@@ -38,6 +38,7 @@ var _ manager.Interface = &mngr{}
 // CertificateRequests using the registered evaluators.
 type mngr struct {
 	reader         client.Reader
+	authorize      policyAuthorizationFunc
 	readyPredicate predicate.Predicate
 	predicates     []predicate.Predicate
 	evaluators     []approver.Evaluator
@@ -67,7 +68,10 @@ type policyMessage struct {
 //     CertificateRequest
 func New(client client.Client, evaluators []approver.Evaluator) manager.Interface {
 	return &mngr{
-		reader:         client,
+		reader: client,
+		authorize: func(ctx context.Context, request *cmapi.CertificateRequest, resource, name string) (bool, error) {
+			return predicate.RBACBoundResource(ctx, client, request, resource, name)
+		},
 		readyPredicate: predicate.Ready,
 		predicates: []predicate.Predicate{
 			predicate.SelectorIssuerRef,
@@ -86,18 +90,27 @@ func (m *mngr) Review(ctx context.Context, cr *cmapi.CertificateRequest) (manage
 	if err := m.reader.List(ctx, policyList); err != nil {
 		return manager.ReviewResponse{}, err
 	}
+	policySetList := new(policyapi.CertificateRequestPolicySetList)
+	if err := m.reader.List(ctx, policySetList); err != nil {
+		return manager.ReviewResponse{}, err
+	}
 
-	// If no CertificateRequestPolicies exist in the cluster, return
+	// If no CertificateRequestPolicies or CertificateRequestPolicySets exist in the cluster, return
 	// ResultUnprocessed. A CertificateRequest may be re-evaluated at a later
-	// time if a CertificateRequestPolicy is created.
-	if len(policyList.Items) == 0 {
+	// time if policy configuration is created.
+	if len(policyList.Items) == 0 && len(policySetList.Items) == 0 {
 		return manager.ReviewResponse{Result: manager.ResultUnprocessed, Message: "No CertificateRequestPolicies exist"}, nil
 	}
 
 	var (
-		policies = policyList.Items
+		policies []policyapi.CertificateRequestPolicy
 		err      error
 	)
+	for _, policy := range policyList.Items {
+		if policy.Spec.PolicySetRef == nil {
+			policies = append(policies, policy)
+		}
+	}
 
 	// Run matching predicates (issuer ref, namespace, RBAC).
 	for _, pred := range m.predicates {
@@ -117,8 +130,22 @@ func (m *mngr) Review(ctx context.Context, cr *cmapi.CertificateRequest) (manage
 		return manager.ReviewResponse{}, fmt.Errorf("failed to filter ready policies: %w", err)
 	}
 
-	// If no policies are appropriate, return ResultUnprocessed.
+	setSelection, err := m.selectPolicySetMembers(ctx, cr, policyList.Items, policySetList.Items)
+	if err != nil {
+		return manager.ReviewResponse{}, err
+	}
+	policies = append(policies, setSelection.policies...)
+
+	// If no policies are appropriate, return ResultUnprocessed. Incomplete
+	// applicable sets take precedence so operators can see why evaluation is
+	// being deferred.
 	if len(policies) == 0 {
+		if len(setSelection.incomplete) > 0 {
+			return manager.ReviewResponse{
+				Result:  manager.ResultUnprocessed,
+				Message: fmt.Sprintf("policy sets are incomplete: %s", strings.Join(setSelection.incomplete, ", ")),
+			}, nil
+		}
 		return manager.ReviewResponse{
 			Result:  manager.ResultUnprocessed,
 			Message: "No CertificateRequestPolicies bound or applicable",
@@ -177,6 +204,13 @@ func (m *mngr) Review(ctx context.Context, cr *cmapi.CertificateRequest) (manage
 	var messages []string
 	for _, policyMessage := range policyMessages {
 		messages = append(messages, fmt.Sprintf("[%s: %s]", policyMessage.name, policyMessage.message))
+	}
+
+	if len(setSelection.incomplete) > 0 {
+		return manager.ReviewResponse{
+			Result:  manager.ResultUnprocessed,
+			Message: fmt.Sprintf("policy sets are incomplete: %s", strings.Join(setSelection.incomplete, ", ")),
+		}, nil
 	}
 
 	// Defer deny if matching policies haven't been reconciled yet — they may

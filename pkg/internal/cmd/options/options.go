@@ -74,6 +74,10 @@ type Options struct {
 	// concurrent reconciles for the CertificateRequestPolicy controller.
 	CertificateRequestPolicyMaxConcurrentReconciles int
 
+	// CertificateRequestPolicySetMaxConcurrentReconciles is the maximum number
+	// of concurrent reconciles for the CertificateRequestPolicySet controller.
+	CertificateRequestPolicySetMaxConcurrentReconciles int
+
 	// log are options controlling logging
 	log logOptions
 
@@ -190,6 +194,10 @@ func (o *Options) Complete() error {
 		return fmt.Errorf("--certificaterequestpolicy-max-concurrent-reconciles must be >= 1, got %d", o.CertificateRequestPolicyMaxConcurrentReconciles)
 	}
 
+	if o.CertificateRequestPolicySetMaxConcurrentReconciles < 1 {
+		return fmt.Errorf("--certificaterequestpolicyset-max-concurrent-reconciles must be >= 1, got %d", o.CertificateRequestPolicySetMaxConcurrentReconciles)
+	}
+
 	// Disable client-side ratelimer, we can rely on API priority and fairness
 	o.RestConfig.QPS = -1
 
@@ -243,6 +251,9 @@ func (o *Options) addAppFlags(fs *pflag.FlagSet) {
 
 	fs.IntVar(&o.CertificateRequestPolicyMaxConcurrentReconciles, "certificaterequestpolicy-max-concurrent-reconciles", 1,
 		"Maximum number of concurrent reconciles for the CertificateRequestPolicy controller.")
+
+	fs.IntVar(&o.CertificateRequestPolicySetMaxConcurrentReconciles, "certificaterequestpolicyset-max-concurrent-reconciles", 1,
+		"Maximum number of concurrent reconciles for the CertificateRequestPolicySet controller.")
 
 	fs.StringVar(&o.PprofBindAddress, "pprof-bind-address", "",
 		"TCP address for exposing Go pprof endpoints. An empty string disables pprof.")

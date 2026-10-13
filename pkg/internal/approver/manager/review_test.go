@@ -250,6 +250,7 @@ func Test_Review(t *testing.T) {
 						Reason:             "Ready",
 						Message:            "CertificateRequestPolicy is ready for approval evaluation",
 						LastTransitionTime: metav1.Now(),
+						ObservedGeneration: policy.Generation,
 					},
 				}
 				if err := env.AdminClient.Status().Update(ctx, &policy); err != nil {

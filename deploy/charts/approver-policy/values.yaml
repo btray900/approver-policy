@@ -11,8 +11,7 @@ crds:
   # This option makes it so that the "helm.sh/resource-policy": keep
   # annotation is added to the CRD. This will prevent Helm from uninstalling
   # the CRD when the Helm release is uninstalled.
-  # WARNING: when the CRDs are removed, all cert-manager-approver-policy custom resources
-  # (CertificateRequestPolicy) will be removed too by the garbage collector.
+  # WARNING: removing CRDs garbage collects every CertificateRequestPolicy and CertificateRequestPolicySet.
   keep: true
 
 # Number of replicas of approver-policy to run.

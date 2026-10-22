@@ -62,6 +62,13 @@ type CertificateRequestPolicyList struct {
 // CertificateRequestPolicySpec defines the desired state of
 // CertificateRequestPolicy.
 type CertificateRequestPolicySpec struct {
+	// policySetRef references the CertificateRequestPolicySet that coordinates
+	// this policy with other policies. A policy that references a set is never
+	// evaluated as a standalone policy, including while the set is missing or
+	// incomplete.
+	// +optional
+	PolicySetRef *CertificateRequestPolicySetReference `json:"policySetRef,omitempty"`
+
 	// allowed defines the allowed attributes for a CertificateRequest.
 	// A CertificateRequest can request _less_ than what is allowed,
 	// but _not more_, i.e. a CertificateRequest can request a subset of what
@@ -91,6 +98,15 @@ type CertificateRequestPolicySpec struct {
 	// CertificateRequestPolicy is appropriate for and so will be used for its
 	// approval evaluation.
 	Selector CertificateRequestPolicySelector `json:"selector"` //nolint:kubeapilinter // nonpointerstructs: pre-existing API; changing it now could break clients, revisit for a future API version
+}
+
+// CertificateRequestPolicySetReference identifies a
+// CertificateRequestPolicySet by name.
+type CertificateRequestPolicySetReference struct {
+	// name is the name of the CertificateRequestPolicySet.
+	// +required
+	// +kubebuilder:validation:MinLength=1
+	Name string `json:"name,omitempty"`
 }
 
 // CertificateRequestPolicyAllowed defines the allowed attributes for a

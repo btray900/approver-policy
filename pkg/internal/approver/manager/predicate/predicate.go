@@ -172,42 +172,54 @@ func SelectorNamespace(reader client.Reader) Predicate {
 // CertificateRequest. Achieved using SubjectAccessReviews.
 func RBACBound(client client.Client) Predicate {
 	return func(ctx context.Context, cr *cmapi.CertificateRequest, policies []policyapi.CertificateRequestPolicy) ([]policyapi.CertificateRequestPolicy, error) {
-		extra := make(map[string]authzv1.ExtraValue)
-		for k, v := range cr.Spec.Extra {
-			extra[k] = v
-		}
-
 		var boundPolicies []policyapi.CertificateRequestPolicy
 		for _, policy := range policies {
-			// Perform subject access review for this CertificateRequestPolicy
-			rev := &authzv1.SubjectAccessReview{
-				Spec: authzv1.SubjectAccessReviewSpec{
-					User:   cr.Spec.Username,
-					Groups: cr.Spec.Groups,
-					Extra:  extra,
-					UID:    cr.Spec.UID,
-
-					ResourceAttributes: &authzv1.ResourceAttributes{
-						Group:     "policy.cert-manager.io",
-						Resource:  "certificaterequestpolicies",
-						Name:      policy.Name,
-						Namespace: cr.Namespace,
-						Verb:      "use",
-					},
-				},
+			allowed, err := RBACBoundResource(ctx, client, cr, "certificaterequestpolicies", policy.Name)
+			if err != nil {
+				return nil, err
 			}
-			if err := client.Create(ctx, rev); err != nil {
-				return nil, fmt.Errorf("failed to create subjectaccessreview: %w", err)
-			}
-
-			// If the user is bound to this policy then append.
-			if rev.Status.Allowed {
+			if allowed {
 				boundPolicies = append(boundPolicies, policy)
 			}
 		}
 
 		return boundPolicies, nil
 	}
+}
+
+// RBACBoundResource reports whether the CertificateRequest requester can use
+// the named policy resource.
+func RBACBoundResource(
+	ctx context.Context,
+	client client.Client,
+	cr *cmapi.CertificateRequest,
+	resource string,
+	name string,
+) (bool, error) {
+	extra := make(map[string]authzv1.ExtraValue)
+	for k, v := range cr.Spec.Extra {
+		extra[k] = v
+	}
+
+	rev := &authzv1.SubjectAccessReview{
+		Spec: authzv1.SubjectAccessReviewSpec{
+			User:   cr.Spec.Username,
+			Groups: cr.Spec.Groups,
+			Extra:  extra,
+			UID:    cr.Spec.UID,
+			ResourceAttributes: &authzv1.ResourceAttributes{
+				Group:     "policy.cert-manager.io",
+				Resource:  resource,
+				Name:      name,
+				Namespace: cr.Namespace,
+				Verb:      "use",
+			},
+		},
+	}
+	if err := client.Create(ctx, rev); err != nil {
+		return false, fmt.Errorf("failed to create subjectaccessreview: %w", err)
+	}
+	return rev.Status.Allowed, nil
 }
 
 func nonEmptyOrDefault(s, d string) string {

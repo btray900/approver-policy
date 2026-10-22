@@ -52,6 +52,11 @@ type Options struct {
 	// concurrent reconciles for the CertificateRequestPolicy controller.
 	// Defaults to 1 if <= 0.
 	CertificateRequestPolicyMaxConcurrentReconciles int
+
+	// CertificateRequestPolicySetMaxConcurrentReconciles is the maximum number
+	// of concurrent reconciles for the CertificateRequestPolicySet controller.
+	// Defaults to 1 if <= 0.
+	CertificateRequestPolicySetMaxConcurrentReconciles int
 }
 
 // AddControllers adds all internal controllers.
@@ -62,6 +67,9 @@ func AddControllers(ctx context.Context, opts Options) error {
 	if opts.CertificateRequestPolicyMaxConcurrentReconciles <= 0 {
 		opts.CertificateRequestPolicyMaxConcurrentReconciles = 1
 	}
+	if opts.CertificateRequestPolicySetMaxConcurrentReconciles <= 0 {
+		opts.CertificateRequestPolicySetMaxConcurrentReconciles = 1
+	}
 
 	if err := addCertificateRequestController(ctx, opts); err != nil {
 		return fmt.Errorf("failed to add certificaterequest controller: %w", err)
@@ -69,6 +77,10 @@ func AddControllers(ctx context.Context, opts Options) error {
 
 	if err := addCertificateRequestPolicyController(ctx, opts); err != nil {
 		return fmt.Errorf("failed to add certificaterequestpolicy controller: %w", err)
+	}
+
+	if err := addCertificateRequestPolicySetController(ctx, opts); err != nil {
+		return fmt.Errorf("failed to add certificaterequestpolicyset controller: %w", err)
 	}
 
 	return nil

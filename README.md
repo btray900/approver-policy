@@ -24,6 +24,34 @@ Please follow the documentation at
 [cert-manager.io](https://cert-manager.io/docs/usage/approver-policy/) for
 installing and using approver-policy.
 
+## Coordinated policy readiness
+
+The optional, cluster scoped CertificateRequestPolicySet resource declares the
+policies that form a complete configuration. Its `spec.selector` scopes requests
+by issuer and namespace independently of whether the member policies exist.
+Each policy listed in `spec.policies` must opt in by referencing the set through
+`spec.policySetRef`.
+
+Members are evaluated only when every expected policy exists, references the
+set, is not being deleted, and has `Ready=True` for its current generation.
+Request evaluation checks the members directly rather than relying on the
+set's published Ready condition. Set status reports readiness and the reasons
+blocking each member.
+
+Requesters need RBAC `use` permission for the set and every member policy.
+Membership grants no approval authority, and member issuer and namespace
+selectors still apply. The example
+[`docs/examples/policy-set.yaml`](docs/examples/policy-set.yaml) includes the
+required ClusterRole; bind it to the users or service accounts that create
+CertificateRequests.
+
+An applicable, authorized but incomplete set leaves requests Unprocessed
+unless an independently eligible policy approves them. Standalone policies
+and complete sets retain the existing any policy may approve behavior.
+Changes to sets, policies, namespaces, or RBAC trigger reevaluation.
+Policies referencing missing sets never fall back to standalone evaluation.
+Policies without `spec.policySetRef` retain their existing behavior.
+
 ## Makefile modules
 
 This project uses [Makefile modules](https://github.com/cert-manager/makefile-modules), see the README there for more information.

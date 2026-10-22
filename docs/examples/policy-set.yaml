@@ -1,0 +1,65 @@
+# A policy set declares the exact policies that must all be ready before the
+# set can make a terminal decision for matching CertificateRequests.
+apiVersion: policy.cert-manager.io/v1alpha1
+kind: CertificateRequestPolicySet
+metadata:
+  name: example-com
+spec:
+  selector:
+    issuerRef: {}
+  policies:
+    - name: example-com-allow
+    - name: example-com-default-deny
+---
+apiVersion: policy.cert-manager.io/v1alpha1
+kind: CertificateRequestPolicy
+metadata:
+  name: example-com-allow
+spec:
+  policySetRef:
+    name: example-com
+  allowed:
+    dnsNames:
+      values:
+        - "*.example.com"
+      required: true
+  selector:
+    issuerRef: {}
+---
+apiVersion: policy.cert-manager.io/v1alpha1
+kind: CertificateRequestPolicy
+metadata:
+  name: example-com-default-deny
+spec:
+  policySetRef:
+    name: example-com
+  allowed:
+    dnsNames:
+      values: []
+      required: true
+  selector:
+    issuerRef: {}
+---
+# Requesters require use permission for the set and every member policy.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: example-com-certificate-policy
+rules:
+  - apiGroups:
+      - policy.cert-manager.io
+    resources:
+      - certificaterequestpolicysets
+    resourceNames:
+      - example-com
+    verbs:
+      - use
+  - apiGroups:
+      - policy.cert-manager.io
+    resources:
+      - certificaterequestpolicies
+    resourceNames:
+      - example-com-allow
+      - example-com-default-deny
+    verbs:
+      - use

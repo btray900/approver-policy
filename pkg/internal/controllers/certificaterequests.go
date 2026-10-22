@@ -144,6 +144,11 @@ func addCertificateRequestController(_ context.Context, opts Options) error {
 		// approved or denied condition since they may be relevant for the policy.
 		Watches(&policyapi.CertificateRequestPolicy{}, handler.EnqueueRequestsFromMapFunc(enqueueRequestFromMapFunc), onlyNonInitialCreateEvents).
 
+		// Watch CertificateRequestPolicySets. A set becoming complete or
+		// incomplete changes whether its member policies can make terminal
+		// decisions.
+		Watches(&policyapi.CertificateRequestPolicySet{}, handler.EnqueueRequestsFromMapFunc(enqueueRequestFromMapFunc), onlyNonInitialCreateEvents).
+
 		// Watch Roles, RoleBindings, ClusterRoles, and ClusterRoleBindings. If
 		// RBAC changes in the cluster then CertificateRequestPolicies may become
 		// appropriate for a CertificateRequest. On RBAC events, Reconcile all

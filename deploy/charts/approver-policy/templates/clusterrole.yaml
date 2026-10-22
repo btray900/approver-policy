@@ -6,11 +6,11 @@ metadata:
   name: {{ include "cert-manager-approver-policy.name" . }}
 rules:
 - apiGroups: ["policy.cert-manager.io"]
-  resources: ["certificaterequestpolicies"]
+  resources: ["certificaterequestpolicies", "certificaterequestpolicysets"]
   verbs: ["list", "watch"]
 
 - apiGroups: ["policy.cert-manager.io"]
-  resources: ["certificaterequestpolicies/status"]
+  resources: ["certificaterequestpolicies/status", "certificaterequestpolicysets/status"]
   verbs: ["patch"]
 
 - apiGroups: ["cert-manager.io"]

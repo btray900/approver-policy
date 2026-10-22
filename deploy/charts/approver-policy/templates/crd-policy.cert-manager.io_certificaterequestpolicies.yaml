@@ -1183,6 +1183,20 @@ spec:
                     configuration that should be executed when this policy is evaluated
                     against a CertificateRequest.
                   type: object
+                policySetRef:
+                  description: |-
+                    policySetRef references the CertificateRequestPolicySet that coordinates
+                    this policy with other policies. A policy that references a set is never
+                    evaluated as a standalone policy, including while the set is missing or
+                    incomplete.
+                  properties:
+                    name:
+                      description: name is the name of the CertificateRequestPolicySet.
+                      minLength: 1
+                      type: string
+                  required:
+                    - name
+                  type: object
                 selector:
                   description: |-
                     selector is used for selecting over which CertificateRequests this

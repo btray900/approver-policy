@@ -1,0 +1,35 @@
+suite: test policy CRD compatibility
+templates:
+  - crd-policy.cert-manager.io_certificaterequestpolicies.yaml
+  - crd-policy.cert-manager.io_certificaterequestpolicysets.yaml
+tests:
+  - it: should support optional membership on existing policies
+    template: crd-policy.cert-manager.io_certificaterequestpolicies.yaml
+    asserts:
+      - equal:
+          path: spec.versions[0].schema.openAPIV3Schema.properties.spec.properties.policySetRef.properties.name.type
+          value: string
+      - notContains:
+          path: spec.versions[0].schema.openAPIV3Schema.properties.spec.required
+          content: policySetRef
+  - it: should install the policy set CRD with the existing CRD settings
+    template: crd-policy.cert-manager.io_certificaterequestpolicysets.yaml
+    asserts:
+      - equal:
+          path: metadata.name
+          value: certificaterequestpolicysets.policy.cert-manager.io
+      - equal:
+          path: metadata.annotations["helm.sh/resource-policy"]
+          value: keep
+  - it: should preserve explicitly disabled CRD installation
+    set:
+      crds.enabled: false
+    asserts:
+      - hasDocuments:
+          count: 0
+  - it: should preserve explicitly disabled CRD retention
+    set:
+      crds.keep: false
+    asserts:
+      - notExists:
+          path: metadata.annotations

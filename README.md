@@ -52,10 +52,44 @@ Changes to sets, policies, namespaces, or RBAC trigger reevaluation.
 Policies referencing missing sets never fall back to standalone evaluation.
 Policies without `spec.policySetRef` retain their existing behavior.
 
+### Upgrading existing installations
+
+Install the updated CertificateRequestPolicy CRD and the new
+CertificateRequestPolicySet CRD before running the updated controller, even
+if no policy sets are used. Existing policies need no changes.
+
+With `crds.enabled=true`, Helm manages both CRDs as chart templates and
+updates them during an upgrade. This change introduces no new Helm values,
+so existing values can be retained with `helm upgrade --reuse-values`.
+Select the new controller image explicitly with `--set image.tag=<version>`
+when reusing values, and update any explicitly configured image digest.
+
+With `crds.enabled=false`, update both externally managed CRDs from
+[`deploy/crds`](deploy/crds) before upgrading the Helm release. Keep
+`crds.enabled=false`; enabling it on an existing external installation can
+cause Helm resource ownership conflicts. Wait for both CRDs to become
+Established before upgrading the controller, and verify that the policy
+schema includes `spec.policySetRef` before creating member policies.
+The old schema can prune that field, causing policies to be treated as
+standalone.
+
+To migrate policies to a set, first install the complete set and its RBAC
+permissions, then add `spec.policySetRef` to its members. Membership does not
+take effect atomically across existing policies: members not yet updated
+still have standalone behavior. Avoid submitting requests that depend on
+coordinated readiness until every member has been updated.
+
 ## Makefile modules
 
 This project uses [Makefile modules](https://github.com/cert-manager/makefile-modules), see the README there for more information.
 A summary of the available make targets can be found by running `make help`.
+
+`make test-upgrade` tests a v0.28.0 installation upgraded with
+`--reuse-values`, including standalone approval and policy set readiness.
+Run it on a dedicated Kind cluster with
+`make test-upgrade kind_cluster_name=approver-policy-upgrade`.
+Use a separate clean cluster and `upgrade_manage_crds=false` to test
+externally managed CRDs.
 
 ## Release Process
 

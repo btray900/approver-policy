@@ -61,3 +61,16 @@ test-smoke: test-smoke-deps | kind-cluster $(NEEDS_GINKGO)
 		./test/smoke/ \
 		-- \
 		--kubeconfig-path $(CURDIR)/$(kind_kubeconfig)
+
+upgrade_manage_crds ?= true
+
+.PHONY: test-upgrade
+## Test a legacy Helm release upgraded with --reuse-values on a dedicated Kind cluster.
+## @category Testing
+test-upgrade: smoke-setup-cert-manager oci-load-manager helm-chart
+	HELM=$(HELM) KUBECTL=$(KUBECTL) \
+	UPGRADE_CHART=$(helm_chart_archive) \
+	UPGRADE_IMAGE=$(oci_manager_image_name_development) \
+	UPGRADE_TAG=$(oci_manager_image_tag) \
+	MANAGE_CRDS=$(upgrade_manage_crds) \
+	bash test/upgrade/upgrade.sh
